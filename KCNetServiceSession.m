@@ -1,19 +1,19 @@
 //
-//  KCClientSession.m
+//  KCNetServiceSession.m
 //  Degrees
 //
 //  Created by Kevin Conner on 5/22/12.
-//  Copyright (c) 2012 __MyCompanyName__. All rights reserved.
+//  This software is free to use.
 //
 
-#import "KCClientSession.h"
+#import "KCNetServiceSession.h"
 #import <arpa/inet.h>
 
-@interface KCClientSession ()
+@interface KCNetServiceSession ()
 @property (nonatomic, strong) NSNetService *netService;
 @end
 
-@implementation KCClientSession
+@implementation KCNetServiceSession
 
 @synthesize netService = _netService;
 

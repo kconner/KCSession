@@ -3,7 +3,7 @@
 //  Degrees
 //
 //  Created by Kevin Conner on 5/22/12.
-//  Copyright (c) 2012 Kevin Conner. This software is free to use.
+//  This software is free to use.
 //
 
 #import "KCSession.h"
