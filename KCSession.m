@@ -9,6 +9,7 @@
 #import "KCSession.h"
 
 @interface KCSession ()
+@property (nonatomic, assign) BOOL connected;
 @property (nonatomic, strong) NSInputStream *inputStream;
 @property (nonatomic, strong) NSOutputStream *outputStream;
 @property (nonatomic, strong) NSMutableArray *outgoingMessages;
@@ -19,6 +20,7 @@
 
 @implementation KCSession
 
+@synthesize connected = _connected;
 @synthesize inputStream = _inputStream;
 @synthesize outputStream = _outputStream;
 @synthesize outgoingMessages = _outgoingMessages;
@@ -164,6 +166,7 @@
         [self.inputStream open];
         [self.outputStream open];
         
+        self.connected = YES;
         [self.delegate sessionDidEstablishConnection:self];
     }
     else {
@@ -172,16 +175,20 @@
 }
 
 - (void)disconnect {
-    [self.inputStream close];
-    [self.outputStream close];
-    [self.inputStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
-    [self.outputStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
-    self.inputStream.delegate = nil;
-    self.outputStream.delegate = nil;
-    self.inputStream = nil;
-    self.outputStream = nil;
+    if (self.connected) {
+        self.connected = NO;
+        
+        [self.inputStream close];
+        [self.outputStream close];
+        [self.inputStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+        [self.outputStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+        self.inputStream.delegate = nil;
+        self.outputStream.delegate = nil;
+        self.inputStream = nil;
+        self.outputStream = nil;
 
-    [self.delegate sessionDidDisconnect:self];
+        [self.delegate sessionDidDisconnect:self];
+    }
 }
 
 - (void)sendMessageWithOpcode:(KCSessionOpcode)opcode object:(id)object {

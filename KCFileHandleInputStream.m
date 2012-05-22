@@ -39,8 +39,6 @@
     NSUInteger remainingBytes = data.length;
     if (remainingBytes == 0) {
         [self.delegate stream:self handleEvent:NSStreamEventEndEncountered];
-        [[NSNotificationCenter defaultCenter] removeObserver:self name:NSFileHandleReadCompletionNotification object:self.fileHandle];
-        self.fileHandle = nil;
         return;
     }
     
@@ -59,6 +57,7 @@
     if (self = [super init]) {
         self.fileHandle = fileHandle;
         self.dataParts = [NSMutableArray array];
+        
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(addDataPart:) name:NSFileHandleReadCompletionNotification object:fileHandle];
         [fileHandle readInBackgroundAndNotify];
     }
