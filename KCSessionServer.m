@@ -38,18 +38,18 @@
     
     NSNumber *errorNo = [userInfo objectForKey:@"NSFileHandleError"];
     if (errorNo) {
-        NSLog(@"NSFileHandle Error: %@", errorNo);
+        NSLog(@"%s: NSFileHandle Error: %@", __func__, errorNo);
         return;
     }
     
     [self.socketHandle acceptConnectionInBackgroundAndNotify]; // Keep listening
     
     if (clientSocketHandle) {
-        [[KCFileHandleSession alloc] initWithFileHandle:clientSocketHandle delegate:self];
+        __unused KCFileHandleSession *session = [[KCFileHandleSession alloc] initWithFileHandle:clientSocketHandle delegate:self];
     }
 }
 
-- (BOOL)beginPublishingService {
+- (BOOL)beginPublishingServiceWithServiceType:(NSString *)serviceType {
     // Adapted from https://developer.apple.com/library/mac/#documentation/Networking/Conceptual/NSNetServiceProgGuide/Articles/PublishingServices.html#//apple_ref/doc/uid/20001076-SW1
     self.socketPort = [[NSSocketPort alloc] initWithTCPPort:0];
     if (self.socketPort) {
@@ -62,18 +62,17 @@
         }
         else {
             self.socketPort = nil;
-            NSLog(@"The family is neither IPv4 nor IPv6. Can't handle.");
+            NSLog(@"%s: The family is neither IPv4 nor IPv6. Can't handle.", __func__);
             return NO;
         }
-        NSLog(@"Port: %d", _port);
     }
     else {
-        NSLog(@"An error occurred initializing the NSSocketPort object.");
+        NSLog(@"%s: NSSocketPort failed to initialize.", __func__);
         return NO;
     }
 
     if (self.socketPort) {
-        self.netService = [[NSNetService alloc] initWithDomain:@"" type:@"_degrees._tcp" name:@"" port:_port];
+        self.netService = [[NSNetService alloc] initWithDomain:@"" type:serviceType name:@"" port:_port];
         if (self.netService) {
             self.socketHandle = [[NSFileHandle alloc] initWithFileDescriptor:[self.socketPort socket] closeOnDealloc:YES];
             [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(connectionAccepted:) name:NSFileHandleConnectionAcceptedNotification object:self.socketHandle];
@@ -83,13 +82,13 @@
             [self.netService publish];
         }
         else {
-            NSLog(@"An error occurred initializing the NSNetService object.");
+            NSLog(@"%s: NSNetService failed to initialize and publish.", __func__);
             self.socketPort = nil;
             return NO;
         }
     }
     else {
-        NSLog(@"An error occurred initializing the NSSocketPort object.");
+        NSLog(@"%s: NSSocketPort failed to initialize.", __func__);
         return NO;
     }
     
@@ -98,13 +97,13 @@
 
 #pragma mark - Init/dealloc
 
-- (id)initWithDelegate:(id<KCSessionServerDelegate>)delegate {
+- (id)initWithServiceType:(NSString *)serviceType delegate:(id<KCSessionServerDelegate>)delegate {
     self = [super init];
     if (self) {
         self.delegate = delegate;
         self.clientSessions = [NSMutableArray array];
         
-        if (![self beginPublishingService]) {
+        if (![self beginPublishingServiceWithServiceType:serviceType]) {
             return nil;
         }
     }
@@ -120,7 +119,7 @@
 
 #pragma mark - Public interface
 
-- (void)broadcastServerMessageWithOpcode:(KCSessionOpcode)opcode object:(id)object {
+- (void)broadcastMessageWithOpcode:(KCSessionOpcode)opcode object:(id)object {
     for (KCSession *session in self.clientSessions) {
         [session sendMessageWithOpcode:opcode object:object];
     }
@@ -146,22 +145,28 @@
 
 #pragma mark - KCSessionDelegate
 
-- (void)sessionDidEstablishConnection:(KCSession *)session {
-    NSLog(@"Client connected.");
+- (void)sessionDidConnect:(KCSession *)session {
+    NSLog(@"@%s: Client connected.", __func__);
     [self.clientSessions addObject:session];
+    if ([self.delegate respondsToSelector:@selector(server:clientDidConnectWithSession:)]) {
+        [self.delegate server:self clientDidConnectWithSession:session];
+    }
 }
 
-- (void)sessionDidNotEstablishConnection:(KCSession *)session {
-    NSLog(@"Client failed to connect!");
+- (void)sessionDidNotConnect:(KCSession *)session {
+    NSLog(@"@%s: Client failed to connect.", __func__);
 }
 
 - (void)sessionDidDisconnect:(KCSession *)session {
-    NSLog(@"Client disconnected.");
+    NSLog(@"@%s: Client disconnected.", __func__);
     [self.clientSessions removeObject:session];
+    if ([self.delegate respondsToSelector:@selector(server:clientDidDisconnectWithSession:)]) {
+        [self.delegate server:self clientDidDisconnectWithSession:session];
+    }
 }
 
-- (void)session:(KCSession *)session receivedMessageWithOpcode:(KCSessionOpcode)opcode object:(id)object {
-    [self.delegate server:self session:session receivedMessageWithOpcode:opcode object:object];
+- (void)session:(KCSession *)session didReceiveMessageWithOpcode:(KCSessionOpcode)opcode object:(id)object {
+    [self.delegate server:self session:session didReceiveMessageWithOpcode:opcode object:object];
 }
 
 @end

@@ -8,24 +8,37 @@
 
 #import <Foundation/Foundation.h>
 
-// A KCSessionOpcode specifies what kind of message you are sending. You can make an enum for these.
-// When calling -sendMessageWithOpcode:object: you can pass one of your enum values for the opcode.
-// When handling session:receivedMessageWithOpcode:object:, you can switch on the opcode to find the type of message, including what type the object has.
+// A KCSession represents a two-way connection from your application to another KCSession in another application.
+// KCSessions communicate using messages consisting of an opcode and a serializable object. You must design your protocol on that foundation.
+
+// When you attempt to connect to streams, the delegate will receive -sessionDidConnect: or -sessionDidNotConnect.
+// If you receive -sessionDidConnect:, you can send and receive messages freely, until you receive -sessionDidDisconnect:.
+// If you receive -sessionDidNotConnect: or -sessionDidDisconnect:, discard this object.
+// To reconnect, you should create a new session object.
+
+// A KCSession can use any input stream and output stream to do its work.
+// Subclasses work by providing streams to this class from sources like a Bonjour NSNetService or a socket's NSFileHandle.
+// If you use this object directly, you should call connectWithInputStream:outputStream and then handle the connection messages.
+// Subclasses typically call that method while initializing, so you don't have to.
+
+// Messages consist of an opcode and an object.
+// Opcodes can be any integer, so you probably want to enumerate them.
+// Objects must be serializable by NSKeyedArchiver and NSKeyedUnarchiver. Objects may be nil.
+
 typedef uint32_t KCSessionOpcode;
 
 @class KCSession;
 
 @protocol KCSessionDelegate <NSObject>
-- (void)sessionDidEstablishConnection:(KCSession *)session;
-- (void)sessionDidNotEstablishConnection:(KCSession *)session;
+- (void)sessionDidConnect:(KCSession *)session;
+- (void)sessionDidNotConnect:(KCSession *)session;
 - (void)sessionDidDisconnect:(KCSession *)session;
-- (void)session:(KCSession *)session receivedMessageWithOpcode:(KCSessionOpcode)opcode object:(id)object;
+- (void)session:(KCSession *)session didReceiveMessageWithOpcode:(KCSessionOpcode)opcode object:(id)object;
 @end
 
 @interface KCSession : NSObject <NSStreamDelegate>
 
 // You are responsible for setting this to nil before releasing the session.
-// TODO can I make this a weak reference?
 @property (nonatomic, assign) id<KCSessionDelegate> delegate;
 
 // First, create a session object with a KCSessionDelegate. Subclass constructors will call this.
@@ -33,14 +46,14 @@ typedef uint32_t KCSessionOpcode;
 
 // Next, establish a connection with input and output streams. Subclasses will do this for you.
 // The session will become the streams' delegate and will try to open them for reading.
-// After this method is called, the delegate will receive either -sessionDidEstablishConnection or -sessionDidNotEstablishConnection.
-- (void)establishConnectionWithInputStream:(NSInputStream *)inputStream outputStream:(NSOutputStream *)outputStream;
+// After this method is called, the delegate will receive either -sessionDidConnect or -sessionDidNotConnect.
+- (void)connectWithInputStream:(NSInputStream *)inputStream outputStream:(NSOutputStream *)outputStream;
 
 // Disconnect when you are done.
 // A session will also disconnect when it is dealloced, but by that time you should have set its delegate to nil.
 - (void)disconnect;
 
-// After you receive -sessionDidEstablishConnection:, you may call this method to send a message.
+// After you receive -sessionDidConnect:, you may call this method to send a message.
 // Messages are sent asynchronously on the main thread. You can queue up as many as you like.
 // If the session becomes disconnected, not all of these messages may have finished sending.
 - (void)sendMessageWithOpcode:(KCSessionOpcode)opcode object:(id)object;

@@ -92,7 +92,7 @@
     while (0 < bytesRemaining) {
         if (bytesRemaining < sizeof(KCSessionOpcode) + sizeof(KCSessionOpcode)) {
             // We have only part of a header. Save it for later and quit.
-            break; // TODO test this branch
+            break;
         }
         
         KCSessionOpcode opcode = 0;
@@ -118,7 +118,7 @@
         }
         
         // We've got the opcode and object in full. Parse and handle it.
-        [self.delegate session:self receivedMessageWithOpcode:opcode object:object];
+        [self.delegate session:self didReceiveMessageWithOpcode:opcode object:object];
         
         // Point forward to the next message.
         message += messageLength;
@@ -131,7 +131,6 @@
         self.incomingMessagePart = nil;
     }
     else if (handledAnyMessages) {
-        // TODO test this branch
         // We have part of a message, and it doesn't start at the beginning of the buffer.
         // Chop out the completed messages and replace the buffer with one containing just the remainder.
         self.incomingMessagePart = [NSMutableData dataWithBytes:message length:bytesRemaining];
@@ -155,7 +154,7 @@
 
 #pragma mark - Public interface
 
-- (void)establishConnectionWithInputStream:(NSInputStream *)inputStream outputStream:(NSOutputStream *)outputStream {
+- (void)connectWithInputStream:(NSInputStream *)inputStream outputStream:(NSOutputStream *)outputStream {
     if (inputStream && outputStream) {
         self.inputStream = inputStream;
         self.outputStream = outputStream;
@@ -167,10 +166,10 @@
         [self.outputStream open];
         
         self.connected = YES;
-        [self.delegate sessionDidEstablishConnection:self];
+        [self.delegate sessionDidConnect:self];
     }
     else {
-        [self.delegate sessionDidNotEstablishConnection:self];
+        [self.delegate sessionDidNotConnect:self];
     }
 }
 

@@ -36,6 +36,7 @@
 }
 
 - (NSInteger)write:(const uint8_t *)buffer maxLength:(NSUInteger)length {
+    // TODO Don't write all data at once. Instead, schedule asynchronous main thread writes using parts of the data.
     [self.fileHandle writeData:[NSData dataWithBytesNoCopy:(void *)buffer length:length freeWhenDone:NO]];
     return length;
 }

@@ -8,6 +8,8 @@
 
 #import <Foundation/Foundation.h>
 
+// An input stream that reads from a file handle.
+
 @interface KCFileHandleInputStream : NSInputStream
 
 @property (nonatomic, assign) id<NSStreamDelegate> delegate;

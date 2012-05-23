@@ -15,8 +15,8 @@
 - (id)initWithFileHandle:(NSFileHandle *)fileHandle delegate:(id<KCSessionDelegate>)delegate {
     self = [super initWithDelegate:delegate];
     if (self) {
-        [self establishConnectionWithInputStream:[[KCFileHandleInputStream alloc] initWithFileHandle:fileHandle]
-                                    outputStream:[[KCFileHandleOutputStream alloc] initWithFileHandle:fileHandle]];
+        [self connectWithInputStream:[[KCFileHandleInputStream alloc] initWithFileHandle:fileHandle]
+                        outputStream:[[KCFileHandleOutputStream alloc] initWithFileHandle:fileHandle]];
     }
     return self;
 }

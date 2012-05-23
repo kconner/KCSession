@@ -74,14 +74,14 @@
     NSInputStream *inputStream = nil;
     NSOutputStream *outputStream = nil;
     [self.netService getInputStream:&inputStream outputStream:&outputStream];
-    [self establishConnectionWithInputStream:inputStream outputStream:outputStream];
+    [self connectWithInputStream:inputStream outputStream:outputStream];
 }
 
 - (void)netService:(NSNetService *)sender didNotResolve:(NSDictionary *)errorDict {
     self.netService.delegate = nil;
     self.netService = nil;
     
-    [self.delegate sessionDidNotEstablishConnection:self];
+    [self.delegate sessionDidNotConnect:self];
 }
 
 @end
