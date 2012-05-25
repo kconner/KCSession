@@ -4,7 +4,7 @@ By Kevin Conner. See [kconner.com](http://kconner.com).
 
 ## Overview
 
-`KCSession` attempts to simplify the task of inter-app communication by stitching together Bonjour, sockets, streams, and a simple message format.
+`KCSession` attempts to simplify the task of inter-app communication by stitching together Bonjour, sockets, streams, and a simple message format. This code expects ARC and iOS 5.
 
 I built this set of classes while creating a Mac level editor for [my iOS game](http://degreesgame.com). I use them to deliver new versions of game levels over wifi while I edit them. You can use this to set up connections and pass serializable Cocoa objects, without having to worry about servers and sockets and ports.
 
@@ -38,5 +38,5 @@ The server can also broadcast a message to every connected client using `-broadc
 I ran out of time to make this code perfect before giving a talk on Bonjour.
 
 - Message processing *should* all be done asynchronously on the main thread, but in the server's case, writes are currently synchronous.
-- The client cannot currently connect to IPv6 servers, even though the server will happily publish itself using an IPv6 address if Bonjour wants it to.
+- I didn't realize until right before my talk that NSSocketPort only exists on OS X, not on iOS. So, currently KCSessionServer won't compile on iOS. I need to replace the NSSocketPort portion with BSD socket code, which I'm told can be found in the WiTap sample. (Thanks, @Hay!)
 

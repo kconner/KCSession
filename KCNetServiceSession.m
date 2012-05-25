@@ -49,28 +49,6 @@
 #pragma mark - NSNetServiceDelegate
 
 - (void)netServiceDidResolveAddress:(NSNetService *)sender {
-    NSLog(@"Resolved: %@", [sender name]);
-    
-    for (NSData *data in self.netService.addresses) {
-        struct sockaddr *addr = (struct sockaddr *) data.bytes;
-        if (addr->sa_family == AF_INET) {
-            char *address = inet_ntoa(((struct sockaddr_in *)addr)->sin_addr);
-            if (address) {
-                break;
-            }
-        } 
-        else {
-            NSLog(@"Address is not IPv4");
-        }
-        // TODO IPv6 http://beej.us/guide/bgnet/output/html/multipage/inet_ntopman.html
-//        else if (addr->sa_family == AF_INET6) {
-//            char *address = ((struct sockaddr_in6 *)addr)->sin6_addr;
-//            if (address) {
-//                break;
-//            }
-//        }
-    }
-    
     NSInputStream *inputStream = nil;
     NSOutputStream *outputStream = nil;
     [self.netService getInputStream:&inputStream outputStream:&outputStream];
