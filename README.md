@@ -6,7 +6,7 @@ By Kevin Conner. See [kconner.com](http://kconner.com).
 
 `KCSession` attempts to simplify the task of inter-app communication by stitching together Bonjour, sockets, streams, and a simple message format.
 
-I built this set of classes while creating a Mac level editor for [my iOS game](http://degreesgame.com). I use them to deliver new versions of game levels over wifi while I edit them. You can use this to set up connections and pass serializable Cocoa objects, without having to worry about servers and sockets and ports.
+I built this set of classes while creating a Mac level editor for [my iOS game](http://degreesgame.com). I use this code to deliver new versions of game levels over wifi while I edit them. You can use this to set up connections and pass serializable Cocoa objects, without having to worry about servers and sockets and ports.
 
 The only requirement is that the objects you send must be serializable with `NSKeyedArchiver`. If you want to use JSON instead of Cocoa objects, that's fine: `NSStrings` are serializable with `NSKeyedArchiver`. You can write your JSON into a string, send the string using `KCSession`, and then parse it on the receiving end.
 
@@ -37,8 +37,9 @@ The server can also broadcast a message to every connected client using `-broadc
 
 ## Unfinished business
 
-I ran out of time to make this code perfect before giving a talk on Bonjour.
+`KCSession` was built to support my game development cycle and I'm not using it in any production products. So:
 
+- It's not well-tested.
 - Message processing *should* all be done asynchronously on the main thread, but in the server's case, writes are currently synchronous.
-- I didn't realize until right before my talk that NSSocketPort only exists on OS X, not on iOS. So, currently KCSessionServer won't compile on iOS. I need to replace the NSSocketPort portion with BSD socket code, which I'm told can be found in the WiTap sample. (Thanks, @Hay!)
+- iOS can run a server, but only on IPv4 currently. I need to revisit the `CFSocket` code in `KCSessionServer` and add IPv6 support, or just wait for `NSSocketPort` to be included in iOS.
 

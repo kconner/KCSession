@@ -11,11 +11,12 @@
 
 #import <netinet/in.h>
 
-@interface KCSessionServer () {
-    struct sockaddr *_addr;
-    int _port;
-}
+@interface KCSessionServer()
+#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE))
 @property (nonatomic, strong) NSSocketPort *socketPort;
+#else
+@property (nonatomic, assign) CFSocketRef cfsocket;
+#endif
 @property (nonatomic, strong) NSFileHandle *socketHandle;
 @property (nonatomic, strong) NSNetService *netService;
 @property (nonatomic, strong) NSMutableArray *clientSessions;
@@ -23,7 +24,11 @@
 
 @implementation KCSessionServer
 
+#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE))
 @synthesize socketPort = _socketPort;
+#else
+@synthesize cfsocket = _cfsocket;
+#endif
 @synthesize socketHandle = _socketHandle;
 @synthesize netService = _netService;
 @synthesize clientSessions = _clientSessions;
@@ -50,31 +55,79 @@
 }
 
 - (BOOL)beginPublishingServiceWithServiceType:(NSString *)serviceType {
+    BOOL success = YES;
+    int port;
+    int socketDescriptor;
+    #if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE))
     // Adapted from https://developer.apple.com/library/mac/#documentation/Networking/Conceptual/NSNetServiceProgGuide/Articles/PublishingServices.html#//apple_ref/doc/uid/20001076-SW1
     self.socketPort = [[NSSocketPort alloc] initWithTCPPort:0];
     if (self.socketPort) {
-        _addr = (struct sockaddr *)[[self.socketPort address] bytes];
-        if (_addr->sa_family == AF_INET) {
-            _port = ntohs(((struct sockaddr_in *)_addr)->sin_port);
+        socketDescriptor = [self.socketPort socket];
+        
+        struct sockaddr *addr = (struct sockaddr *)[[self.socketPort address] bytes];
+        if (addr->sa_family == AF_INET) {
+            port = ntohs(((struct sockaddr_in *)addr)->sin_port);
         }
-        else if (_addr->sa_family == AF_INET6) {
-            _port = ntohs(((struct sockaddr_in6 *)_addr)->sin6_port);
+        else if (addr->sa_family == AF_INET6) {
+            port = ntohs(((struct sockaddr_in6 *)addr)->sin6_port);
         }
         else {
             self.socketPort = nil;
             NSLog(@"%s: The family is neither IPv4 nor IPv6. Can't handle.", __func__);
-            return NO;
+            success = NO;
         }
     }
     else {
         NSLog(@"%s: NSSocketPort failed to initialize.", __func__);
-        return NO;
+        success = NO;
     }
+    #else
+    // Adapted from http://cocoawithlove.com/2009/07/simple-extensible-http-server-in-cocoa.html
+    _cfsocket = CFSocketCreate(kCFAllocatorDefault, PF_INET, SOCK_STREAM, IPPROTO_TCP, 0, NULL, NULL);
+    if (_cfsocket == NULL) {
+        NSLog(@"%s: Unable to create socket.", __func__);
+        success = NO;
+    }
+    
+    if (success) {
+        int reuse = true;
+        socketDescriptor = CFSocketGetNative(_cfsocket);
+        if (setsockopt(socketDescriptor, SOL_SOCKET, SO_REUSEADDR, (void *)&reuse, sizeof(int)) != 0) {
+            NSLog(@"%s: Unable to set socket options.", __func__);
+            success = NO;
+        }
+    }
+    
+    if (success) {
+        // Ask the socket to bind to a port that the system may select
+        struct sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_len = sizeof(addr);
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_port = 0; // Select the port automatically.
+        
+        CFDataRef addressData = CFDataCreate(NULL, (const UInt8 *)&addr, sizeof(addr));
+        if (CFSocketSetAddress(_cfsocket, addressData) != kCFSocketSuccess) {
+            NSLog(@"%s: Unable to bind socket to address.", __func__);
+            success = NO;
+        } 
+        CFRelease(addressData);
+        
+        // Discover the port that was chosen
+        if (success) {
+            addressData = CFSocketCopyAddress(_cfsocket);
+            struct sockaddr_in *addrWithPort = (struct sockaddr_in *) CFDataGetBytePtr(addressData);
+            port = ntohs(addrWithPort->sin_port);
+            CFRelease(addressData);
+        }
+    }
+    #endif
 
-    if (self.socketPort) {
-        self.netService = [[NSNetService alloc] initWithDomain:@"" type:serviceType name:@"" port:_port];
+    if (success) {
+        self.netService = [[NSNetService alloc] initWithDomain:@"" type:serviceType name:@"" port:port];
         if (self.netService) {
-            self.socketHandle = [[NSFileHandle alloc] initWithFileDescriptor:[self.socketPort socket] closeOnDealloc:YES];
+            self.socketHandle = [[NSFileHandle alloc] initWithFileDescriptor:socketDescriptor closeOnDealloc:YES];
             [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(connectionAccepted:) name:NSFileHandleConnectionAcceptedNotification object:self.socketHandle];
             [self.socketHandle acceptConnectionInBackgroundAndNotify];
             
@@ -83,16 +136,23 @@
         }
         else {
             NSLog(@"%s: NSNetService failed to initialize and publish.", __func__);
-            self.socketPort = nil;
-            return NO;
+            success = NO;
         }
     }
     else {
         NSLog(@"%s: NSSocketPort failed to initialize.", __func__);
-        return NO;
+        success = NO;
     }
     
-    return YES;
+    if (!success) {
+        #if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE))
+        self.socketPort = nil;
+        #else
+        CFRelease(_cfsocket);
+        #endif
+    }
+    
+    return success;
 }
 
 #pragma mark - Init/dealloc
@@ -115,6 +175,16 @@
     
     self.netService.delegate = nil;
     [self.netService stop];
+     
+    #if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE))
+    // No-op
+    #else
+    if (_cfsocket) {
+		CFSocketInvalidate(_cfsocket);
+		CFRelease(_cfsocket);
+		_cfsocket = nil;
+	}
+    #endif
 }
 
 #pragma mark - Public interface
@@ -146,7 +216,7 @@
 #pragma mark - KCSessionDelegate
 
 - (void)sessionDidConnect:(KCSession *)session {
-    NSLog(@"@%s: Client connected.", __func__);
+    NSLog(@"%s: Client connected.", __func__);
     [self.clientSessions addObject:session];
     if ([self.delegate respondsToSelector:@selector(server:clientDidConnectWithSession:)]) {
         [self.delegate server:self clientDidConnectWithSession:session];
@@ -154,11 +224,11 @@
 }
 
 - (void)sessionDidNotConnect:(KCSession *)session {
-    NSLog(@"@%s: Client failed to connect.", __func__);
+    NSLog(@"%s: Client failed to connect.", __func__);
 }
 
 - (void)sessionDidDisconnect:(KCSession *)session {
-    NSLog(@"@%s: Client disconnected.", __func__);
+    NSLog(@"%s: Client disconnected.", __func__);
     [self.clientSessions removeObject:session];
     if ([self.delegate respondsToSelector:@selector(server:clientDidDisconnectWithSession:)]) {
         [self.delegate server:self clientDidDisconnectWithSession:session];
