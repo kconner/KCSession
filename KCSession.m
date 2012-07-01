@@ -191,11 +191,12 @@
 }
 
 - (void)sendMessageWithOpcode:(KCSessionOpcode)opcode object:(id)object {
-    NSData *objectData = nil;  
+    NSData *objectData = nil;
+    // objectLength is a KCSessionOpcode just because it's one of two opcode-sized integers in the header.
     KCSessionOpcode objectLength = 0;
     if (object != nil) {
         objectData = [NSKeyedArchiver archivedDataWithRootObject:object];
-        objectLength = objectData.length;
+        objectLength = (KCSessionOpcode) objectData.length;
     }
     
     NSUInteger messageLength = sizeof(KCSessionOpcode) + sizeof(KCSessionOpcode) + objectLength;
