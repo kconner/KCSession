@@ -1,7 +1,5 @@
 # KCSession
 
-By Kevin Conner. See [kconner.com](http://kconner.com).
-
 ## Overview
 
 `KCSession` attempts to simplify the task of inter-app communication by stitching together Bonjour, sockets, streams, and a simple message format.
