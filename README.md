@@ -6,7 +6,7 @@ By Kevin Conner. See [kconner.com](http://kconner.com).
 
 `KCSession` attempts to simplify the task of inter-app communication by stitching together Bonjour, sockets, streams, and a simple message format.
 
-I built this set of classes while creating a Mac level editor for [my iOS game](http://degreesgame.com). I use this code to deliver new versions of game levels over wifi while I edit them. You can use this to set up connections and pass serializable Cocoa objects, without having to worry about servers and sockets and ports.
+I built this set of classes while creating a Mac level editor for an iOS game. I used this code to deliver new versions of game levels over wifi while I edited them. You can use this to set up connections and pass serializable Cocoa objects, without having to worry about servers and sockets and ports.
 
 The only requirement is that the objects you send must be serializable with `NSKeyedArchiver`. If you want to use JSON instead of Cocoa objects, that's fine: `NSStrings` are serializable with `NSKeyedArchiver`. You can write your JSON into a string, send the string using `KCSession`, and then parse it on the receiving end.
 
